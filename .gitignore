@@ -1,0 +1,17 @@
+dist/
+.build/
+packaging/build/
+tests/.runtime/
+node_modules/
+test-results/
+playwright-report/
+__pycache__/
+*.pyc
+*.log
+preferences.json
+live-result.json
+probe-*.html
+.env
+.env.*
+!.env.example
+

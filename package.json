@@ -1,0 +1,17 @@
+{
+  "name": "szu-dianchacha",
+  "version": "1.3.0",
+  "private": true,
+  "description": "SZU电查查：深大宿舍电量查询与可视化",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/model.test.mjs",
+    "test:ui": "node tests/ui.cjs",
+    "test:startup": "node tests/startup.test.cjs",
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File packaging/build.ps1"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  }
+}

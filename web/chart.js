@@ -1,0 +1,58 @@
+import {analyzeUsage,estimateTariff,intervalDetails,dayKey,utcDay} from './model.js';
+
+export function createChart(prefix,mode='daily'){
+const $=id=>document.getElementById(prefix+'-'+(id==='chart'?'chart':id.replace(/^chart-/,'')));
+const fmt=(n,digits=2)=>n===null?'—':Number(n).toLocaleString('zh-CN',{minimumFractionDigits:digits,maximumFractionDigits:digits});
+let current=null, pinned=false, active=null, dismissed=null;
+function svg(tag,attrs={},text){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,String(v));if(text!==undefined)e.textContent=text;return e;}
+function html(tag,className,text){const e=document.createElement(tag);e.className=className;if(text!==undefined)e.textContent=text;return e;}
+function hide(){pinned=false;active=null;$('chart-tooltip').hidden=true;$('chart-tooltip').classList.remove('pinned');if(current){current.highlight.setAttribute('opacity',0);current.halo.setAttribute('opacity',0);current.dot.setAttribute('opacity',0)}}
+function positionCard(clientX,clientY){const card=$('chart-tooltip');const width=card.offsetWidth,height=card.offsetHeight;let x=clientX+20,y=clientY-height/2;if(x+width>window.innerWidth-12)x=clientX-width-20;x=Math.max(12,Math.min(x,window.innerWidth-width-12));y=Math.max(12,Math.min(y,window.innerHeight-height-12));card.style.left=x+'px';card.style.top=y+'px';}
+function show(point,path,x,y,event){if(pinned&&active!==point.no)return;active=point.no;const card=$('chart-tooltip'),details=intervalDetails(point,current.data.purchases,current.tariff.rate);card.replaceChildren();
+ const top=html('div','tooltip-top');top.append(html('span','',point.from?`${point.from.slice(5)} → ${dayKey(point).slice(5)}`:dayKey(point)),html('span','tooltip-tag',point.span>1?`${point.span} 天间隔`:point.from?'1 天间隔':'起始读数'));card.append(top);
+ const primary=html('div','tooltip-energy');primary.append(html('strong','',fmt(point.delta)),html('span','','度'));card.append(primary,html('p','tooltip-label','截至右端读数的间隔耗电'));
+ const expense=html('div','tooltip-cost');expense.append(html('span','','估算电费'),html('strong','',details.cost===null?'暂无单价 / 有效读数':`约 ¥${fmt(details.cost)}`));card.append(expense);
+ if(current.mode==='remain')card.append(html('p','tooltip-secondary',`右端剩余电量 ${fmt(point.remain)} 度`));
+ if(point.span>1)card.append(html('p','tooltip-secondary',`折线按日均 ${fmt(point.daily)} 度展示`));
+ if(details.recharges.length){
+  const summary=html('div','tooltip-recharge-title');summary.append(html('span','','↗ 这段时间的充值'),html('strong','',`¥${fmt(details.rechargeTotal)}`));card.append(summary);
+  const list=html('div','tooltip-recharge-list');for(const purchase of details.recharges){const row=html('div','tooltip-person'),buyer=purchase.buyer||'未提供购买者';const avatar=html('span','avatar',Array.from(buyer.trim())[0]||'人');avatar.setAttribute('aria-label','购买者图标');const color=Array.from(buyer).reduce((s,c)=>s+c.codePointAt(0),0)%4;avatar.dataset.color=color;const name=html('div','person-name');name.append(html('strong','',buyer),html('small','',`${purchase.date.slice(5,16)} · ${purchase.buyType}`));const amount=html('div','person-amount');amount.append(html('strong','',`¥${fmt(purchase.money)}`),html('small','',`${fmt(purchase.amount)} 度`));row.append(avatar,name,amount);list.append(row)}card.append(list);
+ }else card.append(html('div','tooltip-no-recharge','这段时间没有充值记录'));
+ card.append(html('p','tooltip-footnote',current.tariff.rate===null?'可在图表上方填写估算电价':`按 ${fmt(current.tariff.rate,4)} 元 / 度估算${current.tariff.source==='manual'?' · 手动电价':' · 来自付费购电记录'}`));
+ current.anchor={point,path,x,y};card.classList.toggle('pinned',pinned);card.hidden=false;current.highlight.setAttribute('d',path);current.highlight.setAttribute('opacity',1);for(const c of [current.halo,current.dot]){c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('opacity',1)}
+ const rect=current.svg.getBoundingClientRect();const clientX=event?.clientX??rect.left+x,clientY=event?.clientY??rect.top+y;positionCard(clientX,clientY);
+}
+function syncScroll(){if(!current)return;const viewport=$('chart-viewport'),max=Math.max(0,viewport.scrollWidth-viewport.clientWidth);$('chart-scrollbar').hidden=max<2;$('chart-scroll').max=Math.round(max);$('chart-scroll').value=Math.round(viewport.scrollLeft);const visible=current.points.filter(p=>current.x(p)>=viewport.scrollLeft+20&&current.x(p)<=viewport.scrollLeft+viewport.clientWidth-10);$('chart-window').textContent=visible.length?`${dayKey(visible[0])} — ${dayKey(visible.at(-1))}`:'';}
+function drawChart(data,override=''){
+ const oldScroll=$('chart-viewport').scrollLeft,wasAtEnd=current&&Math.abs(oldScroll-Math.max(0,current.width-current.viewportWidth))<3,oldKey=current?.key,key=[data.fetchedAt,data.begin,data.end,data.room].join('|');hide();const analysis=analyzeUsage(data.usage),tariff=estimateTariff(data.purchases,override),remain=mode==='remain';const points=analysis.intervals.map(p=>({...p,value:remain?p.remain:p.daily}));const valid=points.filter(p=>p.value!==null),element=$('chart');element.replaceChildren();$('chart-axis').replaceChildren();$('chart-axis').toggleAttribute('hidden',!valid.length);
+ $('chart-empty').hidden=valid.length>0;$('chart-viewport').hidden=!valid.length;$('chart-summary').textContent=remain?`最新剩余 ${fmt(analysis.latest?.remain??null)} 度 · ${analysis.latest?dayKey(analysis.latest):'暂无读数'}`:`${fmt(analysis.used)} 度 · ${analysis.days} 天有效读数间隔`;$('chart-subtitle').textContent=remain?'日末剩余电量 · 悬停线段查看该时段用电和充值':'每日用电折线 · 跨日缺失按间隔日均展示';$('tariff-note').textContent=tariff.rate===null?'暂无付费购电记录，可手动填写电价':`${tariff.source==='manual'?'手动电价':'购电记录推算'} ${fmt(tariff.rate,4)} 元 / 度`;
+ if(!valid.length){current=null;$('chart-scrollbar').hidden=true;return}
+ const viewport=$('chart-viewport'),height=290,first=utcDay(points[0].date),last=utcDay(points.at(-1).date),span=last-first;const width=Math.max(viewport.clientWidth,span*46+80),left=48,right=width-22,top=25,bottom=height-42;const x=p=>span?left+(utcDay(p.date)-first)/span*(right-left):(left+right)/2;const max=Math.max(1,...valid.map(p=>p.value))*1.2,min=Math.min(0,...valid.map(p=>p.value)),y=value=>bottom-(value-min)/(max-min)*(bottom-top);
+ element.setAttribute('viewBox',`0 0 ${width} ${height}`);element.style.width=width+'px';element.style.height=height+'px';
+ $('chart-axis').append(svg('rect',{width:48,height,fill:'white'}),svg('text',{x:16,y:14},'度'));
+ for(let i=0;i<5;i++){const value=min+(max-min)*i/4,yy=y(value);element.append(svg('line',{x1:left,y1:yy,x2:right,y2:yy,stroke:'#e8eee4','stroke-dasharray':'3 5'}));$('chart-axis').append(svg('text',{x:left-12,y:yy+4,'text-anchor':'end'},fmt(value,0)))}
+ const defs=svg('defs'),gradient=svg('linearGradient',{id:prefix+'-energy-area',x1:'0%',y1:'0%',x2:'0%',y2:'100%'});gradient.append(svg('stop',{offset:'0%','stop-color':'#8caf73','stop-opacity':'.28'}),svg('stop',{offset:'100%','stop-color':'#8caf73','stop-opacity':'.015'}));defs.append(gradient);element.append(defs);
+ const groups=[];let group=[];for(const p of points){if(p.value===null){if(group.length)groups.push(group);group=[]}else group.push(p)}if(group.length)groups.push(group);
+ for(const g of groups){if(g.length<2)continue;const path=g.map((p,i)=>`${i?'L':'M'} ${x(p)} ${y(p.value)}`).join(' ');element.append(svg('path',{d:path+` L ${x(g.at(-1))} ${bottom} L ${x(g[0])} ${bottom} Z`,fill:`url(#${prefix}-energy-area)`,class:'chart-area'}));}
+ const highlight=svg('path',{fill:'none',stroke:'#225e49','stroke-width':5,'stroke-linecap':'round',opacity:0,class:'active-line','pointer-events':'none'}),halo=svg('circle',{r:12,fill:'#9cbd7d',opacity:0,class:'active-halo','pointer-events':'none'}),dot=svg('circle',{r:5,fill:'#fff',stroke:'#245f4d','stroke-width':3,opacity:0,'pointer-events':'none'});current={data,mode,tariff,svg:element,highlight,halo,dot,points,x,key,width,viewportWidth:viewport.clientWidth};
+ const hits=[];
+ for(let i=0;i<points.length;i++){
+  const p=points[i];if(p.value===null)continue;const prev=points[i-1];const path=prev&&prev.value!==null?`M ${x(prev)} ${y(prev.value)} L ${x(p)} ${y(p.value)}`:`M ${x(p)-8} ${y(p.value)} L ${x(p)+8} ${y(p.value)}`;
+  if(prev&&prev.value!==null)element.append(svg('path',{d:path,fill:'none',stroke:'#789c64','stroke-width':2.8,'stroke-linecap':'round',class:'line-segment',...(p.span>1?{'stroke-dasharray':'5 5'}:{})}));
+  element.append(svg('circle',{cx:x(p),cy:y(p.value),r:3.2,fill:'#fff',stroke:'#789c64','stroke-width':2,class:'line-point'}));
+  const details=intervalDetails(p,data.purchases,tariff.rate);
+  if(details.recharges.length){const badge=svg('g',{class:'recharge-marker','aria-label':`${dayKey(p)} 有 ${details.recharges.length} 笔充值`});badge.append(svg('circle',{cx:x(p),cy:y(p.value)-21,r:9,fill:'#ecf4df',stroke:'#b5ce91'}),svg('text',{x:x(p),y:y(p.value)-17,'text-anchor':'middle',class:'recharge-plus'},'+'));element.append(badge)}
+  const hit=svg('path',{d:path,fill:'none',stroke:'transparent','stroke-width':25,tabindex:0,role:'button',class:'chart-hit','data-no':p.no,'data-recharges':details.recharges.length,'aria-label':`${p.from||dayKey(p)} 至 ${dayKey(p)}，耗电 ${fmt(p.delta)} 度，${details.cost===null?'暂无费用估算':`估算 ${fmt(details.cost)} 元`}，${details.recharges.length} 笔充值`});
+  const showHere=e=>show(p,path,x(p),y(p.value),e);
+  hit.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch'&&dismissed!==p.no)showHere(e)});hit.addEventListener('pointermove',e=>{if(!pinned&&dismissed!==p.no){if(active!==p.no||$('chart-tooltip').hidden)showHere(e);else positionCard(e.clientX,e.clientY)}});hit.addEventListener('pointerleave',()=>{if(dismissed===p.no)dismissed=null});hit.addEventListener('focus',()=>showHere());hit.addEventListener('blur',()=>{if(!pinned)hide()});
+  hit.addEventListener('click',e=>{dismissed=null;if(pinned&&active===p.no){hide();return}pinned=false;showHere(e);pinned=true;$('chart-tooltip').classList.add('pinned')});hit.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pinned=false;showHere();pinned=true;$('chart-tooltip').classList.add('pinned')}if(e.key==='Escape'){const no=active;hide();if(no!==null)dismissed=no}});hits.push(hit);
+ }
+ // Larger hit areas sit above visual marks; the active line and dot remain visible.
+ element.append(...hits,highlight,halo,dot);
+ const tickStep=Math.max(1,Math.ceil(span/Math.max(1,Math.floor((right-left)/90))));for(let day=first;day<=last;day+=tickStep){const date=new Date(day*86400000).toISOString().slice(0,10);element.append(svg('text',{x:x({date}),y:height-14,'text-anchor':'middle'},date.slice(5)))}element.append(svg('text',{x:16,y:14},'度'));
+ viewport.scrollLeft=oldKey===key&&!wasAtEnd?oldScroll:Math.max(0,width-viewport.clientWidth);syncScroll();
+}
+$('chart-viewport').addEventListener('scroll',()=>{syncScroll();if(current&&pinned&&current.anchor){const {point,path,x,y}=current.anchor;show(point,path,x,y)}else hide()});$('chart-viewport').addEventListener('pointerleave',()=>{if(!pinned)hide()});$('chart-scroll').addEventListener('input',e=>{hide();$('chart-viewport').scrollLeft=+e.target.value});document.addEventListener('pointerdown',e=>{if(pinned&&!$('chart').contains(e.target)&&!$('chart-tooltip').contains(e.target))hide()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const no=active;hide();if(no!==null)dismissed=no}});window.addEventListener('scroll',()=>{if(current&&active!==null&&current.anchor){const {point,path,x,y}=current.anchor;const rect=current.svg.getBoundingClientRect();if(rect.bottom<0||rect.top>window.innerHeight)hide();else show(point,path,x,y)}},{passive:true});
+
+return {draw:drawChart};
+}

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SZU电查查 · 深大</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="/" aria-label="SZU电查查首页"><span class="brand-icon">ϟ</span><span>SZU电查查<small>SZU DIANCHACHA</small></span></a>
+  <div class="side-label">我的宿舍</div>
+  <div class="room-mini"><span class="room-icon">⌂</span><strong id="side-room">选择你的宿舍</strong><small id="side-campus">让每一度电，心中有数</small></div>
+  <nav aria-label="页面导航"><button class="nav active" data-target="overview-section"><span>▦</span>用电概览</button><button class="nav" data-target="remain-section"><span>ϟ</span>剩余电量</button><button class="nav" data-target="usage-section"><span>∿</span>用电折线</button><button class="nav" data-target="records-section" data-record-tab="usage"><span>≡</span>用电记录</button><button class="nav" data-target="records-section" data-record-tab="purchases"><span>↗</span>购电记录</button></nav>
+  <div class="side-bottom"><div class="local-tag"><i></i> 本机运行 · 数据不上传</div><p>连接校园网或校内 VPN<br>即可查询宿舍电量。</p><button class="text-button" id="stop">关闭查询服务 ↗</button></div>
+</aside>
+<main>
+  <header><div class="breadcrumb">校园生活 <span>/</span> 电量管理</div><div class="header-actions"><span id="connection" class="badge">本地查询</span><button id="demo" class="text-button">体验演示</button><button id="stop-mobile" class="text-button" aria-label="关闭查询服务">关闭服务</button></div></header>
+  <section class="page-heading"><div><div class="eyebrow">A LITTLE ENERGY, A BETTER DAY</div><h1>让每一度电，心中有数<span>。</span></h1><p>看看电量，理理账单。宿舍的用电日常，一目了然。</p></div><div class="today" id="today"></div></section>
+  <section class="query-panel" aria-label="查询条件">
+    <form id="query-form">
+      <div class="query-fields"><label>校区<select id="campus" required></select></label><label>楼栋<select id="building" required></select></label><label class="room-field">房间号<input id="room" value="" maxlength="16" placeholder="例如 101" required pattern="[0-9A-Za-z\-]{1,16}"></label></div>
+      <div class="range-primary"><div><div class="range-label">查询时间</div><div class="quick-ranges" aria-label="快捷查询时间"><button type="button" data-days="7" aria-pressed="false">近 7 天</button><button type="button" data-days="30" class="selected" aria-pressed="true">近 30 天</button><button type="button" data-days="60" aria-pressed="false">近 60 天</button><button type="button" data-days="365" aria-pressed="false">近一年</button></div></div><button id="query" class="primary" type="submit"><span>↻</span> 查询电量</button></div>
+      <div class="query-footer"><span id="range-description"></span><button id="advanced-toggle" class="text-button" type="button" aria-expanded="false" aria-controls="advanced-filters">高级筛选 <span>⌄</span></button></div>
+      <div id="advanced-filters" class="advanced-filters" hidden><label>开始日期<input id="begin" type="date" required></label><span>—</span><label>结束日期<input id="end" type="date" required></label><p>修改日期后点击查询。宿舍选择会自动保存。</p></div>
+    </form>
+  </section>
+  <div class="status-line" role="status" aria-live="polite"><span id="status">选择宿舍和日期范围，开始查询。</span><button id="cancel" class="text-button" hidden>取消查询</button><button id="restore" class="text-button" hidden>查看上次数据</button><button id="clear-cache" class="text-button" hidden>清除缓存</button></div>
+  <section id="data-area" hidden>
+    <div id="overview-section" class="section-heading"><h2 id="room-title">宿舍概览</h2><span id="data-date"></span></div>
+    <div class="metrics">
+      <article class="metric featured"><div class="metric-top">剩余电量 <span>ϟ</span></div><div class="metric-value"><strong id="remain">—</strong><span>度</span></div><div class="metric-note" id="remain-note">查询区间最新记录</div><div class="energy-track"><i id="energy-fill"></i></div></article>
+      <article class="metric"><div class="metric-top">区间日均用电 <span>≈</span></div><div class="metric-value"><strong id="average">—</strong><span>度 / 天</span></div><div class="metric-note" id="average-note">根据有效读数间隔计算</div></article>
+      <article class="metric"><div class="metric-top">数据日预计可用 <span>◷</span></div><div class="metric-value"><strong id="estimated">—</strong><span>天</span></div><div class="metric-note" id="estimate-note">仅供参考</div></article>
+      <article class="metric"><div class="metric-top">区间购电金额 <span>↗</span></div><div class="metric-value"><span class="currency">¥</span><strong id="spending">—</strong></div><div class="metric-note" id="purchase-note">包含查询范围内全部购电记录</div></article>
+    </div>
+    <div id="notice" class="notice" hidden></div>
+    <section id="remain-section" class="chart-panel"><div class="panel-heading"><div><div class="chart-eyebrow">ENERGY IN RESERVE</div><h2>剩余电量</h2><p id="remain-subtitle">沿着每一天，看看电量如何流动</p></div><span class="chart-type-label">日末读数</span></div>
+      <div class="chart-meta"><span id="remain-summary"></span></div>
+      <div class="chart-wrap"><div id="remain-viewport" class="chart-viewport" tabindex="0" aria-label="剩余电量图，可左右滚动"><svg class="chart-svg" id="remain-chart" viewBox="0 0 1000 290" role="group" aria-label="用电趋势图，选择线段查看耗电与充值详情"></svg></div><svg id="remain-axis" class="chart-axis" viewBox="0 0 48 290" aria-hidden="true"></svg><div id="remain-empty" class="empty" hidden>暂无可绘制的记录</div><div id="remain-tooltip" class="chart-tooltip" role="status" hidden></div></div>
+      <div id="remain-scrollbar" class="chart-scrollbar" hidden><span>较早</span><input id="remain-scroll" type="range" min="0" max="0" value="0" aria-label="拖动查看其他日期的折线"><span>最新</span><small id="remain-window"></small></div>
+      <div class="chart-footer"><span><i></i> <span id="remain-legend">悬停或点选线段，查看这一段的用电与充值</span></span><span id="remain-tariff-note"></span></div>
+    </section>
+    <section id="usage-section" class="chart-panel"><div class="panel-heading"><div><div class="chart-eyebrow">ENERGY IN MOTION</div><h2>用电折线</h2><p id="usage-subtitle">沿着每一天，看看电量如何流动</p></div><span class="chart-type-label">每日用电</span></div>
+      <div class="chart-meta"><span id="usage-summary"></span><label class="tariff-label">估算电价 <input id="tariff" type="number" min="0" max="100" step="0.001" placeholder="自动" aria-label="估算电价，元每度"> 元 / 度</label></div>
+      <div class="chart-wrap"><div id="usage-viewport" class="chart-viewport" tabindex="0" aria-label="用电折线图，可左右滚动"><svg class="chart-svg" id="usage-chart" viewBox="0 0 1000 290" role="group" aria-label="用电趋势图，选择线段查看耗电与充值详情"></svg></div><svg id="usage-axis" class="chart-axis" viewBox="0 0 48 290" aria-hidden="true"></svg><div id="usage-empty" class="empty" hidden>暂无可绘制的记录</div><div id="usage-tooltip" class="chart-tooltip" role="status" hidden></div></div>
+      <div id="usage-scrollbar" class="chart-scrollbar" hidden><span>较早</span><input id="usage-scroll" type="range" min="0" max="0" value="0" aria-label="拖动查看其他日期的折线"><span>最新</span><small id="usage-window"></small></div>
+      <div class="chart-footer"><span><i></i> <span id="usage-legend">悬停或点选线段，查看这一段的用电与充值</span></span><span id="usage-tariff-note"></span></div>
+    </section>
+    <section id="records-section" class="records-panel"><div class="panel-heading records-heading"><div class="record-tabs" role="tablist" aria-label="记录类型"><button role="tab" aria-selected="true" class="active" data-tab="usage">用电记录 <span id="usage-count">0</span></button><button role="tab" aria-selected="false" data-tab="purchases">购电记录 <span id="purchase-count">0</span></button></div><button id="export" class="export-button">↓ 导出 CSV</button></div>
+      <div class="table-toolbar"><label class="search-label"><span>⌕</span><input id="search" type="search" placeholder="搜索日期、房间或记录内容" aria-label="搜索记录"></label><div><select id="buy-filter" aria-label="购买形式筛选" hidden><option value="">全部购买形式</option></select><select id="sort" aria-label="排序方式"><option value="desc">最新在前</option><option value="asc">最早在前</option></select></div></div>
+      <div class="table-scroll"><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
+      <div class="table-footer"><span id="table-summary"></span><div><button id="prev" aria-label="上一页">←</button><span id="page-info"></span><button id="next" aria-label="下一页">→</button></div></div>
+    </section>
+    <p class="method-note">统计说明：用电量由相邻累计读数相减得到；跨日间隔显示日均值，负差值不计入统计。可用天数以记录日期的剩余电量估算，未扣除记录之后的用电。</p>
+  </section>
+  <section id="welcome" class="welcome"><div class="welcome-symbol">ϟ</div><h2>你的宿舍电量，随时掌握</h2><p>查询后在这里查看剩余电量、用电趋势和每一笔购电记录。<br>首次使用，请确认已连接校园网或校内 VPN。</p><button id="welcome-demo" class="outline-button">先看看演示效果 →</button><div class="welcome-features"><span>✓ 完整分页查询</span><span>✓ 日期与记录筛选</span><span>✓ 一键导出明细</span></div></section>
+  <footer>SZU电查查 <span>·</span> 数据来源于校园 SIMS 电控查询系统 <span>·</span> 仅查询，不充值</footer>
+</main>
+</body></html>
