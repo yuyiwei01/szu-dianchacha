@@ -1,6 +1,6 @@
 # 使用 SZU电查查
 
-下载发布页中的 **SZU电查查.exe**，双击即可使用。只需一个文件，无需安装或管理员权限。适用于 Windows 10 / 11，使用系统自带的 PowerShell、.NET Framework 和默认浏览器。
+下载发布页中的 **SZU-Dianchacha.exe（SZU电查查）**，双击即可使用。只需一个文件，无需安装或管理员权限。适用于 Windows 10 / 11，使用系统自带的 PowerShell、.NET Framework 和默认浏览器。
 
 源码版完整解压后，双击根目录 **启动SZU电查查.bat** 即可运行，无需安装 Python 或 Node.js。
 

@@ -22,7 +22,7 @@
 
 ## 使用
 
-1. 在 [Releases](https://github.com/yuyiwei01/szu-dianchacha/releases/latest) 下载 `SZU电查查.exe`。
+1. 在 [Releases](https://github.com/yuyiwei01/szu-dianchacha/releases/latest) 下载 `SZU-Dianchacha.exe`（SZU电查查）。
 2. 双击打开，首次填写校区、楼栋和房间号。
 3. 连接校园网或校内 VPN，点击查询；后续打开自动查询。
 
