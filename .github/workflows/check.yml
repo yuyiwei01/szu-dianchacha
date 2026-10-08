@@ -34,4 +34,3 @@ jobs:
           name: SZU-Dianchacha-Windows
           path: dist/*
           if-no-files-found: error
-
